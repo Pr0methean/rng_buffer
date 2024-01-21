@@ -4,7 +4,7 @@ use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
 use rand_core::{OsRng, RngCore, SeedableRng};
 use rand_core::block::BlockRng64;
-use crate::RngBufferCore;
+use rng_buffer::RngBufferCore;
 
 const RESEEDING_THRESHOLD: u64 = 1024;
 
