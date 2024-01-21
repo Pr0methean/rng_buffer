@@ -73,9 +73,9 @@ jobs:
           name: Criterion report
           path: target/criterion
           if-no-files-found: error
-      - name: Upload Criterion reports
+      - name: Upload Iai reports
         uses: actions/upload-artifact@v4
         with:
-          name: Criterion report
+          name: Iai report
           path: target/iai
           if-no-files-found: error
