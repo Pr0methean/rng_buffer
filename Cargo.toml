@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.14.0"
-thread-local-object = "0.1.0"
 rand = "0.8.5"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
 rand_chacha = "0.3.1"
