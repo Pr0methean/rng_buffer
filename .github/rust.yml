@@ -1,0 +1,81 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Cremark=all -Zremark-dir=/tmp/remarks -Cdebuginfo=1
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt -y install gnuplot valgrind
+      - name: Restore Rust cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/debug/*/
+            target/release/*/
+            Cargo.lock
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
+      - name: Install nightly Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Unit Tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          toolchain: nightly
+      - name: Build Benchmarks
+        uses: actions-rs/cargo@v1
+        with:
+          command: bench
+          args: --no-run
+          toolchain: nightly
+      - name: Save Rust cache
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/debug/*/
+            target/release/*/
+            Cargo.lock
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
+      - name: Upload optimization remarks
+        uses: actions/upload-artifact@v4
+        with:
+          name: Optimization remarks
+          path: /tmp/remarks/
+          if-no-files-found: error
+      - name: Run benchmarks
+        uses: actions-rs/cargo@v1
+        with:
+          command: bench
+          toolchain: nightly
+      - name: Upload Criterion reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: Criterion report
+          path: target/criterion
+          if-no-files-found: error
+      - name: Upload Criterion reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: Criterion report
+          path: target/iai
+          if-no-files-found: error
