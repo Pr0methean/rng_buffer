@@ -1,6 +1,8 @@
+extern crate alloc;
+
+use alloc::rc::Rc;
 use bytemuck::cast_slice_mut;
-use std::cell::{RefCell};
-use std::rc::Rc;
+use core::cell::{RefCell};
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;

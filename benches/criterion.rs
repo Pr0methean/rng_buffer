@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use core::mem::size_of;
 use criterion::{black_box, BenchmarkId, Criterion, criterion_group, criterion_main, Throughput};
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
