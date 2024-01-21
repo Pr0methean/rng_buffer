@@ -1,6 +1,7 @@
 use bytemuck::cast_slice_mut;
 use std::cell::{RefCell};
 use std::rc::Rc;
+use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
 use rand_core::{Error, RngCore, SeedableRng};
@@ -61,20 +62,13 @@ impl <const N: usize, T: RngCore> BlockRngCore for RngBufferCore<N, T> {
 pub struct RngCoreWrapper<T: RngCore>(Rc<RefCell<T>>);
 
 impl <T: RngCore> RngCore for RngCoreWrapper<T> {
-    fn next_u32(&mut self) -> u32 {
-        self.0.as_ref().borrow_mut().next_u32()
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        self.0.as_ref().borrow_mut().next_u64()
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.as_ref().borrow_mut().fill_bytes(dest)
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.0.as_ref().borrow_mut().try_fill_bytes(dest)
+    delegate!{
+        to self.0.as_ref().borrow_mut() {
+            fn next_u32(&mut self) -> u32;
+            fn next_u64(&mut self) -> u64;
+            fn fill_bytes(&mut self, dest: &mut [u8]);
+            fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error>;
+        }
     }
 }
 
