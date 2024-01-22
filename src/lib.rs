@@ -97,11 +97,14 @@ thread_local! {
         });
 }
 
-/// Obtains this thread's default buffering wrapper around OsRng.
+/// Obtains this thread's default buffering wrapper around [OsRng]. Produces the same output as [OsRng], but with the
+/// ability to fulfill multiple requests using just one system call.
 pub fn thread_seed_source() -> DefaultSeedSourceRng {
     THREAD_SEEDER_KEY.with(RngCoreWrapper::clone)
 }
 
+/// Obtains this thread's default RNG, which is identical to [rand::thread_rng]() except that it uses
+/// [thread_seed_source]() to reseed itself rather than directly calling [OsRng].
 pub fn thread_rng() -> DefaultRng {
     THREAD_RNG_KEY.with(RngCoreWrapper::clone)
 }
