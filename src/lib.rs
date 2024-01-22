@@ -22,25 +22,25 @@ impl <const N: usize, T: Default + Copy> Default for DefaultableArray<N, T> {
     }
 }
 
-impl<const N: usize, T> AsMut<[T; N]> for DefaultableArray<N, T> {
+impl<const N: usize, T: Default + Copy> AsMut<[T; N]> for DefaultableArray<N, T> {
     fn as_mut(&mut self) -> &mut [T; N] {
         &mut self.0
     }
 }
 
-impl<const N: usize, T> AsRef<[T; N]> for DefaultableArray<N, T> {
+impl<const N: usize, T: Default + Copy> AsRef<[T; N]> for DefaultableArray<N, T> {
     fn as_ref(&self) -> &[T; N] {
         &self.0
     }
 }
 
-impl<const N: usize, T> AsRef<[T]> for DefaultableArray<N, T> {
+impl<const N: usize, T: Default + Copy> AsRef<[T]> for DefaultableArray<N, T> {
     fn as_ref(&self) -> &[T] {
         self.0.as_slice()
     }
 }
 
-impl<const N: usize, T> AsMut<[T]> for DefaultableArray<N, T> {
+impl<const N: usize, T: Default + Copy> AsMut<[T]> for DefaultableArray<N, T> {
     fn as_mut(&mut self) -> &mut [T] {
         self.0.as_mut_slice()
     }
