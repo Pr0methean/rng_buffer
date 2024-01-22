@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 extern crate alloc;
 
 use alloc::rc::Rc;
@@ -59,6 +61,8 @@ impl <const N: usize, T: RngCore> BlockRngCore for RngBufferCore<N, T> {
     }
 }
 
+/// Wraps an RNG in an [Rc] and [RefCell] so that it can be shared (within the same thread) across structs that expect
+/// to own one.
 #[derive(Clone)]
 pub struct RngCoreWrapper<T: RngCore>(Rc<RefCell<T>>);
 
@@ -83,28 +87,61 @@ pub type DefaultRngBufferCore = RngBufferCore<DEFAULT_BUFFER_SIZE, OsRng>;
 
 pub type DefaultSeedSourceRng = RngCoreWrapper<BlockRng64<DefaultRngBufferCore>>;
 
+pub fn build_default_seeder() -> DefaultSeedSourceRng {
+    BlockRng64::new(RngBufferCore(OsRng::default())).into()
+}
+
+impl Default for DefaultSeedSourceRng {
+    #[cfg(feature = "std")]
+    fn default() -> Self {
+        thread_seed_source()
+    }
+    #[cfg(not(feature = "std"))]
+    fn default() -> Self {
+        build_default_seeder()
+    }
+}
+
 pub type DefaultRng = RngCoreWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
+
+pub fn build_default_rng(mut seeder: DefaultSeedSourceRng) -> DefaultRng {
+    let mut seed = [0u8; 32];
+    seeder.fill_bytes(&mut seed);
+    ReseedingRng::new(ChaCha12Core::from_seed(seed), THREAD_RNG_RESEED_THRESHOLD, seeder).into()
+}
+
+impl Default for DefaultRng {
+    #[cfg(feature = "std")]
+    fn default() -> Self {
+        thread_rng()
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn default() -> Self {
+        build_default_rng(DefaultSeedSourceRng::default())
+    }
+}
 
 const THREAD_RNG_RESEED_THRESHOLD: u64 = 1 << 16;
 
+#[cfg(feature = "std")]
 thread_local! {
-    static THREAD_SEEDER_KEY: DefaultSeedSourceRng = BlockRng64::new(RngBufferCore(OsRng::default())).into();
+    static THREAD_SEEDER_KEY: DefaultSeedSourceRng = build_default_seeder();
     static THREAD_RNG_KEY: DefaultRng = THREAD_SEEDER_KEY.with(|seeder| {
-            let mut seeder = seeder.clone();
-            let mut seed = [0u8; 32];
-            seeder.fill_bytes(&mut seed);
-            ReseedingRng::new(ChaCha12Core::from_seed(seed), THREAD_RNG_RESEED_THRESHOLD, seeder).into()
+            build_default_rng(seeder.clone())
         });
 }
 
 /// Obtains this thread's default buffering wrapper around [OsRng]. Produces the same output as [OsRng], but with the
 /// ability to fulfill multiple requests using just one system call.
+#[cfg(feature = "std")]
 pub fn thread_seed_source() -> DefaultSeedSourceRng {
     THREAD_SEEDER_KEY.with(RngCoreWrapper::clone)
 }
 
 /// Obtains this thread's default RNG, which is identical to [rand::thread_rng]() except that it uses
 /// [thread_seed_source]() to reseed itself rather than directly calling [OsRng].
+#[cfg(feature = "std")]
 pub fn thread_rng() -> DefaultRng {
     THREAD_RNG_KEY.with(RngCoreWrapper::clone)
 }
