@@ -8,11 +8,12 @@ use core::cell::RefCell;
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
-use rand_core::{Error, RngCore, SeedableRng};
+use rand_core::{Error, OsRng, RngCore, SeedableRng};
 use rand_core::block::{BlockRng64, BlockRngCore};
-use rand_core::OsRng;
 
+/// Wrapper around an array, that can implement [Default].
 #[derive(Copy, Clone)]
+#[repr(transparent)]
 pub struct DefaultableArray<const N: usize, T>([T; N]);
 
 impl <const N: usize, T: Default + Copy> Default for DefaultableArray<N, T> {
@@ -46,6 +47,7 @@ impl<const N: usize, T> AsMut<[T]> for DefaultableArray<N, T> {
 }
 
 #[derive(Copy, Clone, Debug)]
+#[repr(transparent)]
 pub struct RngBufferCore<const N: usize, T: RngCore>(pub T);
 
 const WORDS_PER_STD_RNG_SEED: usize = 4;
@@ -61,20 +63,39 @@ impl <const N: usize, T: RngCore> BlockRngCore for RngBufferCore<N, T> {
     }
 }
 
+impl <const N: usize, T: RngCore> From<T> for RngBufferCore<N, T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
+/// Wraps an RNG in a buffering [BlockRng64], and also in an [Rc] and [RefCell] so that the buffer can be shared (within
+/// the same thread) with all clones of this instance.
+#[derive(Clone)]
+#[repr(transparent)]
+pub struct RngBufferWrapper<const N: usize, T: RngCore>(Rc<RefCell<BlockRng64<RngBufferCore<N, T>>>>);
+
+impl <const N: usize, T: RngCore> From<T> for RngBufferWrapper<N, T> {
+    fn from(value: T) -> Self {
+        Self(Rc::new(RefCell::new(BlockRng64::new(value.into()))))
+    }
+}
+
 /// Wraps an RNG in an [Rc] and [RefCell] so that it can be shared (within the same thread) across structs that expect
 /// to own one.
 #[derive(Clone)]
-pub struct RngCoreWrapper<T: RngCore>(Rc<RefCell<T>>);
+#[repr(transparent)]
+pub struct RngWrapper<T: RngCore>(Rc<RefCell<T>>);
 
-impl <T: RngCore> From<T> for RngCoreWrapper<T> {
+impl <T: RngCore> From<T> for RngWrapper<T> {
     fn from(value: T) -> Self {
         Self(Rc::new(RefCell::new(value)))
     }
 }
 
-impl <T: RngCore> RngCore for RngCoreWrapper<T> {
+impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
     delegate!{
-        to self.0.as_ref().borrow_mut() {
+        to self.0.as_ref().borrow_mut().core.0 {
             fn next_u32(&mut self) -> u32;
             fn next_u64(&mut self) -> u64;
             fn fill_bytes(&mut self, dest: &mut [u8]);
@@ -83,12 +104,22 @@ impl <T: RngCore> RngCore for RngCoreWrapper<T> {
     }
 }
 
-pub type DefaultRngBufferCore = RngBufferCore<DEFAULT_BUFFER_SIZE, OsRng>;
 
-pub type DefaultSeedSourceRng = RngCoreWrapper<BlockRng64<DefaultRngBufferCore>>;
+impl <T: RngCore> RngCore for RngWrapper<T> {
+    delegate!{
+        to self.0.borrow_mut() {
+            fn next_u32(&mut self) -> u32;
+            fn next_u64(&mut self) -> u64;
+            fn fill_bytes(&mut self, dest: &mut [u8]);
+            fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error>;
+        }
+    }
+}
+
+pub type DefaultSeedSourceRng = RngBufferWrapper<DEFAULT_BUFFER_SIZE, OsRng>;
 
 pub fn build_default_seeder() -> DefaultSeedSourceRng {
-    BlockRng64::new(RngBufferCore(OsRng::default())).into()
+   OsRng::default().into()
 }
 
 impl Default for DefaultSeedSourceRng {
@@ -102,7 +133,7 @@ impl Default for DefaultSeedSourceRng {
     }
 }
 
-pub type DefaultRng = RngCoreWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
+pub type DefaultRng = RngWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
 
 pub fn build_default_rng(mut seeder: DefaultSeedSourceRng) -> DefaultRng {
     let mut seed = [0u8; 32];
@@ -133,31 +164,30 @@ thread_local! {
 }
 
 /// Obtains this thread's default buffering wrapper around [OsRng]. Produces the same output as [OsRng], but with the
-/// ability to fulfill multiple requests using just one system call.
+/// ability to buffer output from one system call and use it to fulfill multiple requests.
 #[cfg(feature = "std")]
 pub fn thread_seed_source() -> DefaultSeedSourceRng {
-    THREAD_SEEDER_KEY.with(RngCoreWrapper::clone)
+    THREAD_SEEDER_KEY.with(DefaultSeedSourceRng::clone)
 }
 
 /// Obtains this thread's default RNG, which is identical to [rand::thread_rng]() except that it uses
 /// [thread_seed_source]() to reseed itself rather than directly calling [OsRng].
 #[cfg(feature = "std")]
 pub fn thread_rng() -> DefaultRng {
-    THREAD_RNG_KEY.with(RngCoreWrapper::clone)
+    THREAD_RNG_KEY.with(DefaultRng::clone)
 }
 
 #[cfg(test)]
 mod tests {
-    use rand_core::{Error, OsRng};
-    use rand_core::block::{BlockRng64};
-    use crate::{DefaultRngBufferCore, RngBufferCore};
+    use rand_core::{Error};
+    use crate::{build_default_seeder, DefaultSeedSourceRng};
 
     #[test]
     fn basic_test() -> Result<(), Error> {
         use rand::rngs::StdRng;
         use rand::SeedableRng;
-        let shared_seeder: DefaultRngBufferCore = RngBufferCore(OsRng::default());
-        let client_prng: StdRng = StdRng::from_rng(&mut BlockRng64::new(shared_seeder))?;
+        let shared_seeder: DefaultSeedSourceRng = build_default_seeder();
+        let client_prng: StdRng = StdRng::from_rng(shared_seeder)?;
         let zero_seed_prng = StdRng::from_seed([0; 32]);
         assert_ne!(client_prng, zero_seed_prng);
         Ok(())
