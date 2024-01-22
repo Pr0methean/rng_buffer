@@ -2,7 +2,7 @@ extern crate alloc;
 
 use alloc::rc::Rc;
 use bytemuck::cast_slice_mut;
-use core::cell::{RefCell};
+use core::cell::RefCell;
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
@@ -49,7 +49,6 @@ pub struct RngBufferCore<const N: usize, T: RngCore>(pub T);
 const WORDS_PER_STD_RNG_SEED: usize = 4;
 const DEFAULT_SEEDS_PER_BUFFER: usize = 16;
 const DEFAULT_BUFFER_SIZE: usize = WORDS_PER_STD_RNG_SEED * DEFAULT_SEEDS_PER_BUFFER;
-const DEFAULT_RESEEDING_THRESHOLD: u64 = 1 << 16;
 
 impl <const N: usize, T: RngCore> BlockRngCore for RngBufferCore<N, T> {
     type Item = u64;
@@ -62,6 +61,12 @@ impl <const N: usize, T: RngCore> BlockRngCore for RngBufferCore<N, T> {
 
 #[derive(Clone)]
 pub struct RngCoreWrapper<T: RngCore>(Rc<RefCell<T>>);
+
+impl <T: RngCore> From<T> for RngCoreWrapper<T> {
+    fn from(value: T) -> Self {
+        Self(Rc::new(RefCell::new(value)))
+    }
+}
 
 impl <T: RngCore> RngCore for RngCoreWrapper<T> {
     delegate!{
@@ -78,24 +83,27 @@ pub type DefaultRngBufferCore = RngBufferCore<DEFAULT_BUFFER_SIZE, OsRng>;
 
 pub type DefaultSeedSourceRng = RngCoreWrapper<BlockRng64<DefaultRngBufferCore>>;
 
-pub type DefaultRng = ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>;
+pub type DefaultRng = RngCoreWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
+
+const THREAD_RNG_RESEED_THRESHOLD: u64 = 1 << 16;
 
 thread_local! {
-    static DEFAULT_INSTANCES: DefaultSeedSourceRng
-        = RngCoreWrapper(Rc::new(RefCell::new(BlockRng64::new(RngBufferCore(OsRng::default())))));
+    static THREAD_SEEDER_KEY: DefaultSeedSourceRng = BlockRng64::new(RngBufferCore(OsRng::default())).into();
+    static THREAD_RNG_KEY: DefaultRng = THREAD_SEEDER_KEY.with(|seeder| {
+            let mut seeder = seeder.clone();
+            let mut seed = [0u8; 32];
+            seeder.fill_bytes(&mut seed);
+            ReseedingRng::new(ChaCha12Core::from_seed(seed), THREAD_RNG_RESEED_THRESHOLD, seeder).into()
+        });
 }
 
+/// Obtains this thread's default buffering wrapper around OsRng.
 pub fn thread_seed_source() -> DefaultSeedSourceRng {
-    DEFAULT_INSTANCES.with(RngCoreWrapper::clone)
+    THREAD_SEEDER_KEY.with(RngCoreWrapper::clone)
 }
 
 pub fn thread_rng() -> DefaultRng {
-    DEFAULT_INSTANCES.with(|seed_source| {
-        let mut seed = [0u8; 32];
-        OsRng::default().fill_bytes(&mut seed);
-        ReseedingRng::new(ChaCha12Core::from_seed(seed), DEFAULT_RESEEDING_THRESHOLD,
-                          seed_source.clone())
-    })
+    THREAD_RNG_KEY.with(RngCoreWrapper::clone)
 }
 
 #[cfg(test)]
