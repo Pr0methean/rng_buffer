@@ -14,7 +14,7 @@ use rand_core::block::{BlockRng64, BlockRngCore};
 /// Wrapper around an array, that can implement [Default].
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct DefaultableArray<const N: usize, T>([T; N]);
+pub struct DefaultableArray<const N: usize, T: Default + Copy>([T; N]);
 
 impl <const N: usize, T: Default + Copy> Default for DefaultableArray<N, T> {
     fn default() -> Self {
