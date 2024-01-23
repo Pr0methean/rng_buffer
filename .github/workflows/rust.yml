@@ -5,7 +5,7 @@ on:
     branches: [ "master" ]
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -Cremark=all -Zremark-dir=/tmp/remarks -Cdebuginfo=1
+  RUSTFLAGS: -Cremark=all -Zremark-dir=/tmp/remarks
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -56,6 +56,25 @@ jobs:
             target/release/*/
             Cargo.lock
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
+      - name: Copy raw benchmarks
+        run: |
+          cp target/release/deps/os* os
+          cp target/release/deps/buffer_size_2* buffer_size_2
+          cp target/release/deps/buffer_size_4* buffer_size_4
+          cp target/release/deps/buffer_size_8* buffer_size_8
+          cp target/release/deps/buffer_size_16* buffer_size_16
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: rng_buffer/perf:latest
       - name: Upload optimization remarks
         uses: actions/upload-artifact@v4
         with:
