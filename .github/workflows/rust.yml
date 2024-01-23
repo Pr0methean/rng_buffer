@@ -27,7 +27,7 @@ jobs:
             target/debug/*/
             target/release/*/
             Cargo.lock
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
       - name: Install nightly Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -55,7 +55,7 @@ jobs:
             target/debug/*/
             target/release/*/
             Cargo.lock
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
       - name: Copy raw benchmarks
         run: |
           for BENCH in "os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16"; do
