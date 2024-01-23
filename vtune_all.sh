@@ -1,4 +1,8 @@
 #!/bin/bash
+cd /opt/intel/oneapi/vtune/latest/bin64/ || exit 1
+sh ./vtune-self-checker.sh
+cd /
+
 BENCHES=( os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16 )
 for BENCH in "${BENCHES[@]}"; do
   mkdir "$BENCH"-results
