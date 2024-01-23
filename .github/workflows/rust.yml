@@ -58,11 +58,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml', '.github/workflows/rust.yml') }}
       - name: Copy raw benchmarks
         run: |
-          cp target/release/deps/os* os
-          cp target/release/deps/buffer_size_2* buffer_size_2
-          cp target/release/deps/buffer_size_4* buffer_size_4
-          cp target/release/deps/buffer_size_8* buffer_size_8
-          cp target/release/deps/buffer_size_16* buffer_size_16
+          for BENCH in ( os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16 ); do
+            find target/release/deps -iname "$BENCH*" -executable -exec cp {} "$BENCH"
+          done
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub

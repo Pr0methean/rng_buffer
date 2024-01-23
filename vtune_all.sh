@@ -1,10 +1,9 @@
 #!/bin/bash
-vtune -collect uarch-exploration -result-dir=/results -- /os
-vtune -collect uarch-exploration -result-dir=/results -- /buffer_size_2.rs
-vtune -collect uarch-exploration -result-dir=/results -- /buffer_size_4.rs
-vtune -collect uarch-exploration -result-dir=/results -- /buffer_size_8.rs
-vtune -collect uarch-exploration -result-dir=/results -- /buffer_size_16.rs
-cd results || exit 1
-for FILE in *; do
-  aws s3api put-object --bucket rng-buffer-reports --body "$FILE" --key "$FILE"
+BENCHES=( os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16 )
+for BENCH in "${BENCHES[@]}"; do
+  mkdir "$BENCH"-results
+  vtune -collect uarch-exploration -result-dir=/results -- /"$BENCH"
+  for FILE in $BENCH-results/*; do
+    aws s3api put-object --bucket rng-buffer-reports --body "$FILE" --key "$FILE"
+  done
 done
