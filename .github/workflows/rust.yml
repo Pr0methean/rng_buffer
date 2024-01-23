@@ -58,7 +58,8 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
       - name: Copy raw benchmarks
         run: |
-          for BENCH in "os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16"; do
+          BENCHES="os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16"
+          for BENCH in $BENCHES; do
             find -D exec,search,rates target/release/deps -iname "${BENCH}*" -executable -exec cp '{}' "./$BENCH" \;
           done
           pwd
