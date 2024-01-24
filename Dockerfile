@@ -3,9 +3,12 @@ COPY ./vtune_all.sh /
 COPY ./os /
 COPY ./buffer_size_* /
 
+USER root
+
 RUN cd /opt/intel/oneapi/vtune/2024.0/sepdk/src
 RUN ./insmod-sep -g vtune -pu
 RUN ./boot-script --install
+RUN cd /
 
 RUN apt-get install -y --no-install-recommends python build-essential curl unzip
 
