@@ -1,4 +1,11 @@
 #!/bin/bash
+cd /opt/intel/oneapi/vtune/2024.0/sepdk/src || exit 1
+./insmod-sep -g vtune -pu
+./boot-script --install
+cd /
+
+# FIXME: Find a way to do the above in the Dockerfile
+
 cd /opt/intel/oneapi/vtune/latest/bin64/ || exit 1
 sh ./vtune-self-checker.sh
 cd /
