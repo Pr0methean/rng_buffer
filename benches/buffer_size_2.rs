@@ -2,5 +2,5 @@ use crate::raw::*;
 mod raw;
 
 pub fn main() {
-    buffer_size_2()
+    run_in_rayon(buffer_size_2)
 }

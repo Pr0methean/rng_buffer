@@ -4,10 +4,11 @@ use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::{ChaCha12Core};
 use rand_core::{OsRng, RngCore, SeedableRng};
 use rand_core::block::BlockRng64;
+use rayon::iter::IntoParallelIterator;
 use rng_buffer::RngBufferCore;
 
 const RESEEDING_THRESHOLD: u64 = 1024; // in bytes
-const OUTPUT_AMOUNT: u64 = 4096; // in u64's
+const OUTPUT_AMOUNT: u64 = 1 << 16; // in u64's
 
 macro_rules! bench_iai {
     ($n:expr) => {
@@ -34,6 +35,10 @@ pub fn bench_reseeding_from_os() {
     (0..OUTPUT_AMOUNT).for_each(|_| {
         let _ = black_box(reseeding_from_os.next_u64());
     })
+}
+
+pub fn run_in_rayon(func: fn() -> ()) {
+    (0..num_cpus::get_physical()).into_par_iter().for_each(|_| func());
 }
 
 bench_iai!(2);
