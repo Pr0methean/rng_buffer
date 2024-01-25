@@ -1,6 +1,5 @@
 #!/bin/bash
-pushd
-cd /opt/intel/oneapi/vtune/latest/sepdk/src || exit 1
+pushd /opt/intel/oneapi/vtune/latest/sepdk/src || exit 1
 ./insmod-sep -g vtune -pu
 ./boot-script --install
 
@@ -12,9 +11,9 @@ popd
 
 BENCHES=( os buffer_size_2 buffer_size_4 buffer_size_8 buffer_size_16 )
 for BENCH in "${BENCHES[@]}"; do
+  rm -rf "$BENCH"-results
   mkdir "$BENCH"-results
-  rm "$BENCH"-results/*
-  /opt/intel/oneapi/vtune/latest/bin64/vtune -collect uarch-exploration -result-dir="$BENCH"-results -- ./"$BENCH"
+  /opt/intel/oneapi/vtune/latest/bin64/vtune -collect uarch-exploration -result-dir="$BENCH"-results -- $(pwd)/"$BENCH"
   for FILE in "$BENCH"-results/*; do
     aws s3api put-object --bucket rng-buffer-reports --body ./"$BENCH"-results/"$FILE" --key "$FILE"
   done
