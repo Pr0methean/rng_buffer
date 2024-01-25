@@ -9,7 +9,7 @@ use rayon::iter::ParallelIterator;
 use rng_buffer::RngBufferCore;
 
 const RESEEDING_THRESHOLD: u64 = 1024; // in bytes
-const OUTPUT_AMOUNT: u64 = 1 << 16; // in u64's
+const OUTPUT_AMOUNT: u64 = 1 << 32; // in u64's
 
 macro_rules! bench_iai {
     ($n:expr) => {
