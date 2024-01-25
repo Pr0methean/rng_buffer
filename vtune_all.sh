@@ -15,6 +15,6 @@ for BENCH in "${BENCHES[@]}"; do
   mkdir "$BENCH"-results
   /opt/intel/oneapi/vtune/latest/bin64/vtune -collect uarch-exploration -result-dir="$BENCH"-results -- $(pwd)/"$BENCH"
   for FILE in "$BENCH"-results/*; do
-    aws s3api put-object --bucket rng-buffer-reports --body ./"$BENCH"-results/"$FILE" --key "$FILE"
+    aws s3 cp ./"$BENCH"-results/"$FILE" s3:///rng-buffer-reports/"$BENCH"-results/"$FILE"
   done
 done
