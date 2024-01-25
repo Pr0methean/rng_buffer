@@ -5,7 +5,7 @@ on:
     branches: [ "master" ]
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -Cremark=all -Zremark-dir=/tmp/remarks
+  RUSTFLAGS: -Cremark=all -Zremark-dir=/tmp/remarks -Ctarget-cpu=native
 jobs:
   test:
     runs-on: ubuntu-latest
