@@ -108,7 +108,7 @@ impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
         if dest.len() > N * size_of::<u64>() {
-            unsafe { self.0.as_ref().as_ptr().as_mut().unwrap().core.0.try_fill_bytes(dest) }
+            self.0.as_ref().borrow_mut().core.0.try_fill_bytes(dest)
         } else {
             self.0.as_ptr().try_fill_bytes(dest)
         }
