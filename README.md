@@ -33,6 +33,7 @@ introduces several caveats that may make it unsuitable for some cryptographic an
 * Even if the wrapped RNG features fast key erasure (as `OsRng` does on Linux kernels 5.17 and newer), the buffering
   wrapper will not.
 * Storing future seeds in the buffer may increase the attack surface for electromagnetic or power-consumption-based
-  side-channel attacks, if the attacker can get physically close enough to the CPU to enable these. (It shouldn't have
-  any beneficial attacks on timing-based side-channel attacks, unless random numbers are being consumed at a
-  data-dependent rate. In all other cases, cache misses when reading the buffer will only make the timings noisier.)
+  side-channel attacks, if the attacker can get physically close enough to the CPU to enable these. (It shouldn't help
+  the attacker with timing-based side-channel attacks, because even if random numbers are being consumed at a
+  data-dependent rate, the delay from an occasional buffer fill or cache miss will provide less information than a
+  system call for every seed read.)
