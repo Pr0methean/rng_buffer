@@ -47,8 +47,7 @@ impl<const N: usize, T: Default + Copy> AsMut<[T]> for DefaultableArray<N, T> {
     }
 }
 
-/// Wrapper around an [RngCore] that combines up to [N] * 2 calls to [Rng::next_u32]() or [N] calls to [Rng::next_u64]()
-/// into one call to [RngCore::fill_bytes].
+/// Wrapper around an [RngCore] that fills an 8*[N]-byte buffer at a time in order to make fewer system calls.
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct RngBufferCore<const N: usize, T: RngCore>(pub T);
@@ -72,7 +71,7 @@ impl <const N: usize, T: RngCore> From<T> for RngBufferCore<N, T> {
     }
 }
 
-/// Wraps an [RngBufferCore] using a [BlockRng64]. Also wraps it in an [Rc] and [RefCell] so that the buffer can be
+/// Wraps an [RngBufferCore] using a [BlockRng64]. Also wraps it in an [Rc] and [RefCell] so that the buffer will be
 /// shared with all clones of the instance in the same thread. (This buffer isn't meant to be shared between threads,
 /// because benchmarks indicate that the overhead cost of communication between threads is usually larger than that of
 /// the system call that an [OsRng] makes.)
@@ -111,7 +110,7 @@ impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        if dest.len() > N * size_of::<u64>() {
+        if dest.len() >= N * size_of::<u64>() {
             self.0.as_ref().borrow_mut().core.0.try_fill_bytes(dest)
         } else {
             self.0.as_ptr().try_fill_bytes(dest)
