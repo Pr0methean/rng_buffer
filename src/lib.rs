@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::rc::Rc;
 use bytemuck::cast_slice_mut;
 use core::cell::RefCell;
+use std::intrinsics::size_of;
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
@@ -98,8 +99,18 @@ impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
         to self.0.as_ref().borrow_mut().core.0 {
             fn next_u32(&mut self) -> u32;
             fn next_u64(&mut self) -> u64;
-            fn fill_bytes(&mut self, dest: &mut [u8]);
-            fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error>;
+        }
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.try_fill_bytes(dest).expect("RngBufferWrapper core threw an error from try_fill_bytes")
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+        if dest.len() > N * size_of::<u64>() {
+            unsafe { self.0.as_ref().as_ptr().as_mut().unwrap().core.0.try_fill_bytes(dest) }
+        } else {
+            self.0.as_ptr().try_fill_bytes(dest)
         }
     }
 }
