@@ -130,8 +130,7 @@ impl <T: RngCore> RngCore for RngWrapper<T> {
     }
 }
 
-/// A wrapper around [OsRng] that uses a buffer to provide a reasonable default amount of PRNG seed material with just
-/// one [OsRng] call.
+/// A wrapper around [OsRng] that uses an [RngBufferCore] with a reasonable default buffer size.
 pub type DefaultSeedSourceRng = RngBufferWrapper<DEFAULT_BUFFER_SIZE, OsRng>;
 
 /// Creates an instance of [DefaultSeedSourceRng] that doesn't share state with any other instance.
@@ -150,8 +149,8 @@ impl Default for DefaultSeedSourceRng {
     }
 }
 
-/// A drop-in replacement for [rand::ThreadRng] that behaves identically, except that it uses a buffer to reduce the
-/// number of [OsRng] calls it makes to reseed itself.
+/// A drop-in replacement for [rand::ThreadRng] that behaves identically, except that it uses an [RngBufferCore] to
+/// wrap the [OsRng] that it uses to reseed itself.
 pub type DefaultRng = RngWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
 
 /// Creates an instance of [DefaultRng] that uses the given seed source.
@@ -183,15 +182,14 @@ thread_local! {
         });
 }
 
-/// Obtains this thread's default buffering wrapper around [OsRng]. Produces the same output as [OsRng], but with the
-/// ability to buffer output from one system call and use it to fulfill multiple requests.
+/// Obtains the default [DefaultSeedSourceRng] for this thread.
 #[cfg(feature = "std")]
 pub fn thread_seed_source() -> DefaultSeedSourceRng {
     THREAD_SEEDER_KEY.with(DefaultSeedSourceRng::clone)
 }
 
-/// Obtains this thread's default RNG, which is identical to [rand::thread_rng]() except that it uses
-/// [thread_seed_source]() to reseed itself multiple times with just one call to [OsRng].
+/// Obtains this thread's default [DefaultRng], which is identical to [rand::thread_rng]() except that it uses
+/// [thread_seed_source]() rather than directly invoking [OsRng] to reseed itself.
 #[cfg(feature = "std")]
 pub fn thread_rng() -> DefaultRng {
     THREAD_RNG_KEY.with(DefaultRng::clone)
