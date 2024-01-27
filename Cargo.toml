@@ -1,7 +1,13 @@
 [package]
 name = "rng_buffer"
+description = "Wrappers around RNGs to buffer their output and save system calls"
 version = "0.1.0"
 edition = "2021"
+documentation = "README.md"
+license-file = "LICENSE.md"
+license = "MIT"
+repository = "https://github.com/Pr0methean/rng_buffer"
+authors = ["Chris Hennick"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
