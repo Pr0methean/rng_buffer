@@ -6,7 +6,7 @@ extern crate alloc;
 use alloc::rc::Rc;
 use bytemuck::cast_slice_mut;
 use core::cell::RefCell;
-use std::intrinsics::size_of;
+use core::mem::size_of;
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
@@ -114,7 +114,7 @@ impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
         if dest.len() >= N * size_of::<u64>() {
             self.0.as_ref().borrow_mut().core.0.try_fill_bytes(dest)
         } else {
-            self.0.as_ptr().try_fill_bytes(dest)
+            unsafe { self.0.as_ptr().as_mut().unwrap().try_fill_bytes(dest) }
         }
     }
 }
