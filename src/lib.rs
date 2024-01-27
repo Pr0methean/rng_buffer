@@ -99,7 +99,8 @@ impl <T: RngCore> From<T> for RngWrapper<T> {
 }
 
 // This isn't implemented for RngBufferWrapper because the buffering loses fast key erasure if the underlying RNG has
-// that feature.
+// that feature. It also slightly delays the introduction of new entropy and may increase the attack surface for
+// radio-spectrum side-channel attacks.
 impl <T: RngCore + CryptoRng> CryptoRng for RngWrapper<T> {}
 
 impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
