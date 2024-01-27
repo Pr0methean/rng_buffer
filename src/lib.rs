@@ -10,7 +10,7 @@ use core::mem::size_of;
 use delegate::delegate;
 use rand::rngs::adapter::ReseedingRng;
 use rand_chacha::ChaCha12Core;
-use rand_core::{Error, OsRng, RngCore, SeedableRng};
+use rand_core::{CryptoRng, Error, OsRng, RngCore, SeedableRng};
 use rand_core::block::{BlockRng64, BlockRngCore};
 
 /// Wrapper around an array, that implements [Default] by copying the default element.
@@ -97,6 +97,10 @@ impl <T: RngCore> From<T> for RngWrapper<T> {
         Self(Rc::new(RefCell::new(value)))
     }
 }
+
+// This isn't implemented for RngBufferWrapper because the buffering loses fast key erasure if the underlying RNG has
+// that feature.
+impl <T: RngCore + CryptoRng> CryptoRng for RngWrapper<T> {}
 
 impl <const N: usize, T: RngCore> RngCore for RngBufferWrapper<N, T> {
     delegate!{
