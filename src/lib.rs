@@ -12,7 +12,7 @@ use rand_chacha::ChaCha12Core;
 use rand_core::{Error, OsRng, RngCore, SeedableRng};
 use rand_core::block::{BlockRng64, BlockRngCore};
 
-/// Wrapper around an array, that can implement [Default].
+/// Wrapper around an array, that implements [Default] by copying the default element.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct DefaultableArray<const N: usize, T: Default + Copy>([T; N]);
@@ -47,6 +47,8 @@ impl<const N: usize, T: Default + Copy> AsMut<[T]> for DefaultableArray<N, T> {
     }
 }
 
+/// Wrapper around an [RngCore] that combines up to [N] * 2 calls to [Rng::next_u32]() or [N] calls to [Rng::next_u64]()
+/// into one call to [RngCore::fill_bytes].
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct RngBufferCore<const N: usize, T: RngCore>(pub T);
@@ -70,8 +72,10 @@ impl <const N: usize, T: RngCore> From<T> for RngBufferCore<N, T> {
     }
 }
 
-/// Wraps an RNG in a buffering [BlockRng64], and also in an [Rc] and [RefCell] so that the buffer can be shared (within
-/// the same thread) with all clones of this instance.
+/// Wraps an [RngBufferCore] using a [BlockRng64]. Also wraps it in an [Rc] and [RefCell] so that the buffer can be
+/// shared with all clones of the instance in the same thread. (This buffer isn't meant to be shared between threads,
+/// because benchmarks indicate that the overhead cost of communication between threads is usually larger than that of
+/// the system call that an [OsRng] makes.)
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct RngBufferWrapper<const N: usize, T: RngCore>(Rc<RefCell<BlockRng64<RngBufferCore<N, T>>>>);
@@ -127,8 +131,11 @@ impl <T: RngCore> RngCore for RngWrapper<T> {
     }
 }
 
+/// A wrapper around [OsRng] that uses a buffer to provide a reasonable default amount of PRNG seed material with just
+/// one [OsRng] call.
 pub type DefaultSeedSourceRng = RngBufferWrapper<DEFAULT_BUFFER_SIZE, OsRng>;
 
+/// Creates an instance of [DefaultSeedSourceRng] that doesn't share state with any other instance.
 pub fn build_default_seeder() -> DefaultSeedSourceRng {
    OsRng::default().into()
 }
@@ -144,8 +151,11 @@ impl Default for DefaultSeedSourceRng {
     }
 }
 
+/// A drop-in replacement for [rand::ThreadRng] that behaves identically, except that it uses a buffer to reduce the
+/// number of [OsRng] calls it makes to reseed itself.
 pub type DefaultRng = RngWrapper<ReseedingRng<ChaCha12Core, DefaultSeedSourceRng>>;
 
+/// Creates an instance of [DefaultRng] that uses the given seed source.
 pub fn build_default_rng(mut seeder: DefaultSeedSourceRng) -> DefaultRng {
     let mut seed = [0u8; 32];
     seeder.fill_bytes(&mut seed);
@@ -182,7 +192,7 @@ pub fn thread_seed_source() -> DefaultSeedSourceRng {
 }
 
 /// Obtains this thread's default RNG, which is identical to [rand::thread_rng]() except that it uses
-/// [thread_seed_source]() to reseed itself rather than directly calling [OsRng].
+/// [thread_seed_source]() to reseed itself multiple times with just one call to [OsRng].
 #[cfg(feature = "std")]
 pub fn thread_rng() -> DefaultRng {
     THREAD_RNG_KEY.with(DefaultRng::clone)
