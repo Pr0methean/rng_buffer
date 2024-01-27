@@ -2,7 +2,9 @@
 
 This small crate provides `RngBufferCore`, a struct that wraps any `rand::Rng` and implements `BlockRngCore` so that,
 when used in a `rand_core::block::BlockRng64`, it will fetch more bytes with each call. This is mainly intended to
-reduce the number of system calls when using `rand::rngs::OsRng` or a client of a remote RNG. Profiling with Vtune on an 
+reduce the number of system calls when using `rand::rngs::OsRng` or a client of a remote RNG, for purposes where you
+want to reseed regularly to prevent subtle patterns in your random numbers, but don't need fast key erasure (mainly for
+Monte Carlo simulations and game servers; I don't recommend it for cryptography or gambling). Profiling with Vtune on an 
 EC2 `c7i.metal-24xl` instance running Linux HVM kernel version `6.1.72-96.166.amzn2023.x86_64` showed that this reduced 
 the number of CPU cycles spent inside system calls by 80% with a 256-byte buffer per thread (currently the default).
 
